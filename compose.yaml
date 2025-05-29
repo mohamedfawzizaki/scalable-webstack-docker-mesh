@@ -1,0 +1,76 @@
+name: webstack
+
+services:
+  frontend:
+    container_name: web
+    image: docker.io/mohamedfawzi/frontend-image:v1
+    build:
+      context: ./frontend
+      # no_cache: true
+      # pull: true  
+      dockerfile: frontend.Dockerfile
+      args:
+        NODE_VERSION: 14
+
+
+    ports:
+      - "80:80"
+      - "443:443"
+    extra_hosts:
+      - "myhost.local:192.168.1.1"  
+    env_file:
+      - path: ./frontend/.env
+        required: true
+    volumes:
+      - type: bind
+        source: ./frontend/nginx/nginx.conf
+        target: /etc/nginx/conf.d/default.conf
+        read_only: true
+    labels:
+      com.example.service: "web"
+      com.example.environment: "development"
+    annotations:
+      com.example.environment: "development"
+    depends_on:
+      loadbalancer:
+        condition: service_healthy
+        restart: true
+
+
+        
+  loadbalancer:
+    container_name: loadbalancer
+    # image: nginx:latest
+    build:
+      context: ./loadbalancer
+      no_cache: true
+      pull: true  
+    secrets:
+      - source: frontend-secret
+        target: front-sec    # secret ID in Dockerfile
+        # uid: "103"
+        # gid: "103"
+        # mode: 0440
+    expose:
+      - "80"
+    volumes:
+      - type: bind
+        source: ./nginx.conf
+        target: /etc/nginx/conf.d/default.conf
+        read_only: true
+    labels:
+      com.example.service: "loadbalancer"
+      com.example.environment: "development"
+    annotations:
+      com.example.environment: "development" 
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost/health"]
+      interval: 10s
+      timeout: 5s
+      retries: 3
+      start_period: 5s
+
+
+secrets:
+  frontend-secret:
+    file: /home/mo/.secrets/front.secret     
