@@ -5,6 +5,8 @@
 /.pnp
 .pnp.js
 
+/nginx/ssl/localhost.crt
+/nginx/ssl/localhost.key
 # testing
 /coverage
 

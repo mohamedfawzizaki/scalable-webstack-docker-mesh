@@ -53,11 +53,11 @@ function App() {
         </button>
 
         <button 
-          onClick={() => testEndpoint('load-balancer')} 
+          onClick={() => testEndpoint('proxy')} 
           disabled={loading.loadBalancer}
           className={loading.loadBalancer ? 'loading' : ''}
         >
-          {loading.loadBalancer ? 'Testing...' : 'Test Load Balancer Nginx'}
+          {loading.loadBalancer ? 'Testing...' : 'Test Proxy Nginx'}
         </button>
 
         <button 
@@ -69,7 +69,7 @@ function App() {
         </button>
 
         <button 
-          onClick={() => testEndpoint('db')} 
+          onClick={() => testEndpoint('mysql')} 
           disabled={loading.db}
           className={loading.db ? 'loading' : ''}
         >
@@ -83,19 +83,28 @@ function App() {
         >
           {loading.redis ? 'Testing...' : 'Test Redis'}
         </button>
-        
+
+        <button 
+          onClick={() => testEndpoint('phpmyadmin')} 
+          disabled={loading.phpmyadmin}
+          className={loading.phpmyadmin ? 'loading' : ''}
+        >
+          {loading.phpmyadmin ? 'Testing...' : 'Test Phpmyadmin'}
+        </button>
+
       </div>
       
       <div className="results-container">
         {Object.entries(results).map(([endpoint, result]) => (
-          <div key={endpoint} className="result-card">
-            <h3>Test: {endpoint.replace('-', ' ')}</h3>
+          <div key={endpoint} className="result-card" style={{ fontSize: '18px' }}>
+            <h3 style={{ fontSize: '24px' }}>Test: {endpoint.replace('-', ' ')}</h3>
             <p><strong>Time:</strong> {result.time}</p>
             <p><strong>Status:</strong> {result.status}</p>
-            <pre><strong>Response:</strong> {JSON.stringify(result.data, null, 2)}</pre>
+            <pre style={{ fontSize: '16px' }}><strong>Response:</strong> {JSON.stringify(result.data, null, 2)}</pre>
           </div>
         ))}
       </div>
+
     </div>
   );
 }

@@ -1,76 +1,277 @@
 name: webstack
 
 services:
+  # Frontend Service: React Application with Nginx Reverse Proxy
+  # Hosts the React application and serves it through Nginx web server.
+  # Acts as the entry point for user traffic, handling HTTP/HTTPS requests.
+  # Features:
+  #     - Builds production-optimized React app
+  #     - Custom Nginx configuration for routing and security
+  #     - Environment-based configuration
+  #     - Static IP assignment in public network
+  #     - Health-check dependency on proxy service
   frontend:
-    container_name: web
-    image: docker.io/mohamedfawzi/frontend-image:v1
+    container_name: react_nginx
+    hostname: react_nginx
+    restart: always
+    pull_policy: always
+    image: docker.io/mohamedfawzi/react-nginx-image:v1.0.0
     build:
       context: ./frontend
       # no_cache: true
       # pull: true  
       dockerfile: frontend.Dockerfile
-      args:
-        NODE_VERSION: 14
-
-
+      target: prod   
     ports:
       - "80:80"
-      - "443:443"
+      - "0.0.0.0:443:443/tcp"
     extra_hosts:
       - "myhost.local:192.168.1.1"  
     env_file:
-      - path: ./frontend/.env
+      - path: ./frontend/frontend.env
         required: true
+    environment:
+      NODE_ENV: production    
     volumes:
       - type: bind
         source: ./frontend/nginx/nginx.conf
         target: /etc/nginx/conf.d/default.conf
         read_only: true
+      - ./frontend/nginx/error.html:/usr/share/nginx/html/error.html:ro
     labels:
-      com.example.service: "web"
-      com.example.environment: "development"
+      com.example.service: "web_app"
+      com.example.environment: "production"
     annotations:
-      com.example.environment: "development"
+      com.example.environment: "production"
     depends_on:
-      loadbalancer:
+      proxy:
         condition: service_healthy
         restart: true
+    networks:
+      public-net:
+        aliases:
+          - frontend_container
+          - f_container
+        ipv4_address: 10.100.10.3
+        gw_priority: 100 
 
-
-        
-  loadbalancer:
-    container_name: loadbalancer
-    # image: nginx:latest
-    build:
-      context: ./loadbalancer
-      no_cache: true
-      pull: true  
-    secrets:
-      - source: frontend-secret
-        target: front-sec    # secret ID in Dockerfile
-        # uid: "103"
-        # gid: "103"
-        # mode: 0440
-    expose:
-      - "80"
+  # Reverse Proxy Service: Nginx Load Balancer
+  # Central routing component that distributes incoming requests to backend services.
+  # Responsibilities:
+  #     - Acts as TLS termination point for HTTPS traffic
+  #     - Load balances between multiple backend instances (node1, node2)
+  #     - Provides custom error pages
+  #     - Health monitoring of backend services
+  #     - Serves as single entry point for all application traffic
+  proxy:
+    container_name: nginx_proxy
+    hostname: proxy
+    image: nginx:latest
+    environment:
+      PROXY_CLIENT: nginx  
     volumes:
-      - type: bind
-        source: ./nginx.conf
-        target: /etc/nginx/conf.d/default.conf
-        read_only: true
-    labels:
-      com.example.service: "loadbalancer"
-      com.example.environment: "development"
+      - ./proxy/nginx.conf:/etc/nginx/conf.d/default.conf:ro
+      - ./proxy/error.html:/usr/share/nginx/html/error.html:ro
+    label_file: ./proxy/proxy.labels
     annotations:
-      com.example.environment: "development" 
+      com.example.environment: "production" 
     healthcheck:
       test: ["CMD", "curl", "-f", "http://localhost/health"]
       interval: 10s
       timeout: 5s
       retries: 3
       start_period: 5s
+    networks:
+      public-net:
+        ipv4_address: 10.100.10.4
+        gw_priority: 100
+      private-net:
+    depends_on:
+      - base_backend
+      - node1
+      - node2
 
+  # Base Backend Instance: Node.js Application
+  base_backend:
+    container_name: base_node
+    hostname: base_node
+    restart: always
+    pull_policy: always
+    image: docker.io/mohamedfawzi/backend-nodejs-image:v1.0.0
+    build:
+      context: ./backend
+      no_cache: true
+      pull: true  
+      dockerfile: backend.Dockerfile
+    expose:
+      - "3000"
+    extra_hosts:
+      - "myhost.local:192.168.1.1"  
+    env_file:
+      - path: ./backend/backend.env
+        required: true
+    environment:
+      NODE_ENV: production 
+    volumes:
+      - type: bind
+        source: ./backend
+        target: /usr/src/app
+        read_only: true
+    labels:
+      com.example.service: "backend"
+      com.example.environment: "production"
+    annotations:
+      com.example.environment: "production"
+    depends_on:
+      mysql-db:
+        condition: service_healthy
+        restart: true
+      redis:
+        condition: service_healthy
+        restart: true
+    networks:
+      - private-net
 
-secrets:
-  frontend-secret:
-    file: /home/mo/.secrets/front.secret     
+  # Backend Instance: Node.js Application
+  node1:
+    container_name: node1
+    hostname: node1
+    extends: 
+      service: base_backend
+
+  # Backend Instance: Node.js Application
+  node2:
+    container_name: node2
+    hostname: node2
+    extends: 
+      service: base_backend
+
+  # Database Service: MySQL Server
+  # Primary relational data store for the application.
+  # Features:
+  #   - Persistent storage for database files
+  #   - Environment-configured credentials
+  #   - Health monitoring
+  #   - Optimized MySQL 8 configuration
+  #   - Isolated to private network
+  mysql-db:
+    container_name: mysql-db
+    hostname: mysql-db
+    image: mysql:8.0
+    env_file:
+      - path: ./database/mysql.env
+        required: true
+    restart: always
+    networks:
+      - private-net
+    volumes:
+      - mysql-data:/var/lib/mysql
+    labels:
+      com.mycompany.service: "mysql-database"
+    healthcheck:
+      test: ["CMD", "mysqladmin", "ping", "-h", "localhost", "-u", "root", "-p${MYSQL_ROOT_PASSWORD:-root}"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+      start_period: 10s
+
+  # Database Admin Service: phpMyAdmin
+  # Web-based MySQL administration interface.
+  # Provides:
+  #   - Visual database management
+  #   - SQL query execution
+  #   - User/permission management
+  # Exposed on port 8080 for external access.
+  phpmyadmin:
+    container_name: phpmyadmin
+    image: phpmyadmin
+    env_file:
+      - path: ./phpmyadmin/phpmyadmin.env
+        required: true
+    restart: always
+    ports:
+      - "8080:80"
+    networks:
+      public-net:
+        ipv4_address: 10.100.10.5
+      private-net:
+    labels:
+      com.mycompany.service: "phpmyadmin"
+    depends_on:
+      mysql-db:
+        condition: service_healthy
+        restart: true
+
+  # Caching Service: Redis Server
+  # In-memory data store used for:
+  #   - Session storage
+  #   - Caching frequent queries
+  #   - Pub/sub messaging
+  #   - Rate limiting
+  # Features:
+  #   - Password authentication
+  #   - Periodic data persistence
+  #   - Health monitoring
+  redis:
+      image: redis:latest
+      container_name: redis
+      env_file:
+      - path: ./redis/redis.env
+        required: true
+      volumes:
+        - redis-data:/data
+      command: >
+        sh -c "redis-server --requirepass $$REDIS_PASSWORD --save 60 1 --loglevel warning"
+      restart: unless-stopped
+      networks:
+        - private-net
+      healthcheck:
+        test: ["CMD", "redis-cli", "-a", "$$REDIS_PASSWORD", "ping"]
+        interval: 10s
+        timeout: 5s
+        retries: 5
+        start_period: 10s
+
+networks:
+  public-net:
+    name: public_net
+    driver: bridge
+    ipam:
+      driver: default
+      config:
+        - subnet: 10.100.10.0/24         
+          ip_range: 10.100.10.0/25       
+          gateway: 10.100.10.254
+          aux_addresses:
+            monitor: 10.100.10.1
+            vpn: 10.100.10.2
+
+  private-net:
+    name: private_net
+    driver: bridge
+    internal: true
+    ipam:
+      driver: default
+      config:
+        - subnet: 10.100.20.0/24          
+          ip_range: 10.100.20.0/25
+          gateway: 10.100.20.254
+          aux_addresses:
+            monitor: 10.100.20.2
+    labels:
+      com.mycompany.environment: "development"
+      com.mycompany.team: "backend"
+
+volumes:
+  redis-data:
+    name: "redis-data"
+    labels:
+      com.example.description: "Redis volume"
+      com.example.department: "IT/Ops"
+      com.example.label-with-empty-value: ""
+  mysql-data:
+    name: "mysql-data"
+    labels:
+      com.example.description: "Mysql Database volume"
+      com.example.department: "IT/Ops"
+      com.example.label-with-empty-value: ""
