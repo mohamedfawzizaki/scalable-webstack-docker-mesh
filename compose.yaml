@@ -28,7 +28,7 @@ services:
     extra_hosts:
       - "myhost.local:192.168.1.1"  
     env_file:
-      - path: ./frontend/frontend.env
+      - path: ./frontend/frontend.env.example
         required: true
     environment:
       NODE_ENV: production    
@@ -108,7 +108,7 @@ services:
     extra_hosts:
       - "myhost.local:192.168.1.1"  
     env_file:
-      - path: ./backend/backend.env
+      - path: ./backend/backend.env.example
         required: true
     environment:
       NODE_ENV: production 
@@ -159,7 +159,7 @@ services:
     hostname: mysql-db
     image: mysql:8.0
     env_file:
-      - path: ./database/mysql.env
+      - path: ./database/mysql.env.example
         required: true
     restart: always
     networks:
@@ -186,7 +186,7 @@ services:
     container_name: phpmyadmin
     image: phpmyadmin
     env_file:
-      - path: ./phpmyadmin/phpmyadmin.env
+      - path: ./phpmyadmin/phpmyadmin.env.example
         required: true
     restart: always
     ports:
@@ -216,7 +216,7 @@ services:
       image: redis:latest
       container_name: redis
       env_file:
-      - path: ./redis/redis.env
+      - path: ./redis/redis.env.example
         required: true
       volumes:
         - redis-data:/data
