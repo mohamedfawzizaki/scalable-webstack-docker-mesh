@@ -87,8 +87,12 @@ cd scalable-webstack-docker-mesh
 ### 2. Generate SSL Certs
 ```bash
 cd frontend/nginx/ssl
-chmod +x generate-certs.sh # if in linux
+# in Linux
+chmod +x generate-certs.sh
 ./generate-certs.sh
+# in Windows
+openssl req -x509 -nodes -days 365 -newkey rsa:2048 -keyout localhost.key -out localhost.crt -subj "/CN=localhost" -addext "subjectAltName=DNS:localhost"
+
 ```
 
 ### 3. Create environment files
