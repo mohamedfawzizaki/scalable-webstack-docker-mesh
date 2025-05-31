@@ -15,21 +15,21 @@ services:
     hostname: react_nginx
     restart: always
     pull_policy: always
-    image: docker.io/mohamedfawzi/react-nginx-image:v1.0.0
-    build:
-      context: ./frontend
-      # no_cache: true
-      # pull: true  
-      dockerfile: frontend.Dockerfile
-      target: prod   
+    image: docker.io/mohamedfawzi/react-nginx-image:v1.1.0
+    # build:
+    #   context: ./frontend
+    #   # no_cache: true
+    #   # pull: true  
+    #   dockerfile: frontend.Dockerfile
+    #   target: prod   
     ports:
       - "80:80"
       - "0.0.0.0:443:443/tcp"
     extra_hosts:
       - "myhost.local:192.168.1.1"  
-    env_file:
-      - path: ./frontend/frontend.env.example
-        required: true
+    # env_file:
+    #   - path: ./frontend/frontend.env.example
+    #     required: true
     environment:
       NODE_ENV: production    
     volumes:
@@ -97,12 +97,12 @@ services:
     hostname: base_node
     restart: always
     pull_policy: always
-    image: docker.io/mohamedfawzi/backend-nodejs-image:v1.0.0
-    build:
-      context: ./backend
-      no_cache: true
-      pull: true  
-      dockerfile: backend.Dockerfile
+    image: docker.io/mohamedfawzi/backend-nodejs-image:v1.1.0
+    # build:
+    #   context: ./backend
+    #   no_cache: true
+    #   pull: true  
+    #   dockerfile: backend.Dockerfile
     expose:
       - "3000"
     extra_hosts:

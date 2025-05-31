@@ -11,6 +11,12 @@ RUN npm run build
 # Stage 2: Serve the built app with Nginx
 FROM nginx:alpine AS prod
 
+# Remove default Nginx config
+RUN rm -f /etc/nginx/conf.d/default.conf
+
+# Copy custom Nginx config
+COPY ./nginx/nginx.conf /etc/nginx/conf.d/default.conf
+
 # Copy SSL certificates
 COPY nginx/ssl/localhost.crt /etc/ssl/certs/
 COPY nginx/ssl/localhost.key /etc/ssl/private/

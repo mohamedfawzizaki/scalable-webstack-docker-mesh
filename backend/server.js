@@ -11,7 +11,7 @@ const redisClient = redis.createClient({
     host: process.env.REDIS_HOST || 'localhost',
     port: process.env.REDIS_PORT || 6379
   },
-  password: process.env.REDIS_PASSWORD
+  password: process.env.REDIS_PASSWORD || '1234'
 });
 
 redisClient.on('error', err => console.error('Redis error:', err));
@@ -36,7 +36,7 @@ app.get('/api/test-mysql', async (req, res) => {
       port: process.env.MYSQL_PORT || '3306',
       database: process.env.MYSQL_DB || 'my_db',
       user: process.env.MYSQL_USER || 'root',
-      password: process.env.MYSQL_PASSWORD || 'password',
+      password: process.env.MYSQL_PASSWORD || 'root',
 
     });
 
